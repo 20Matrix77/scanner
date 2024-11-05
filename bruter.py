@@ -52,6 +52,7 @@ combo = [
     "root:uClinux",
     "telnetadmin:telnetadmin",
     "root:2011vsta",
+    "admin:dvr",
     "root:fidel123"
 ]
 
